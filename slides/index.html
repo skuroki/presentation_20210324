@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+<title>Slides</title>
+
+<meta name="description" content="">
+<meta name="author" content="">
+<meta name="generator" content="reveal-ck 3.5.0">
+
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+
+<link rel="stylesheet" href="css/reveal.css">
+<link rel="stylesheet" href="css/theme/black.css" id="theme">
+
+<!-- Code syntax highlighting -->
+<link rel="stylesheet" href="lib/css/zenburn.css">
+
+<link rel="stylesheet" href="css/reveal-ck.css">
+
+
+<!-- Printing and PDF exports -->
+<script>
+  var link = document.createElement( 'link' );
+  link.rel = 'stylesheet';
+  link.type = 'text/css';
+  link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+  document.getElementsByTagName( 'head' )[0].appendChild( link );
+</script>
+
+<!--[if lt IE 9]>
+<script src="lib/js/html5shiv.js"></script>
+<![endif]-->
+
+  </head>
+
+  <body>
+    <div class="reveal">
+  <!-- Any section element inside of this container is displayed as a slide -->
+  <div class="slides">
+    <section>
+
+<h1>Railsのセッションの話</h1>
+
+<h2>2021/03/24 @Fukuoka.rb 200回 LT大会</h2>
+
+<p>黒木 慎介</p>
+
+</section>
+<section>
+
+<h2>自己紹介</h2>
+
+<ul>
+  <li>RubyとRails（など）で仕事してます
+    <ul>
+      <li>2010-</li>
+    </ul>
+  </li>
+  <li>プログラミングを教える仕事も
+    <ul>
+      <li>2019-</li>
+    </ul>
+  </li>
+  <li>福岡県民
+    <ul>
+      <li>1981-2007, 2019-</li>
+      <li>今は福岡市東区箱崎に住んでます</li>
+    </ul>
+  </li>
+  <li>これから時々お邪魔したいなと思っています、今日はその挨拶も兼ねて</li>
+</ul>
+
+</section>
+<section>
+
+<h2>Fukuoka.rb 200回 おめでとうございます！！</h2>
+
+<p><img src="images/kusudama.png" alt=""></p>
+
+</section>
+<section>
+
+<h2>このスライドについて</h2>
+
+<ul>
+  <li>公開します</li>
+  <li>もっと細かい版を後日Qiitaの記事にしたい</li>
+  <li>動作確認はRuby3.0+Rails6.1で行いました</li>
+</ul>
+
+</section>
+<section>
+
+<h2>目次</h2>
+
+<ul>
+  <li>このスライドの問題意識と目的</li>
+  <li>Railsのセッションって何なの？</li>
+  <li>CookieStoreを使う場合の動き</li>
+  <li>ActiveRecordStoreを使う場合の動き</li>
+  <li>（時間があったら）余談</li>
+</ul>
+
+</section>
+<section>
+
+<h2>このスライドの問題意識と目的</h2>
+
+<ul>
+  <li>Railsのセッションって、初学者にとってはわかりにくい気がする</li>
+  <li>「セッションのデータはサーバー側に保存される」みたいな、完全に間違いではないのだけど誤解を生みそうな説明がされていることがある</li>
+  <li>ちょっと丁寧めの解説をしてみたい</li>
+</ul>
+
+</section>
+<section>
+
+<h2>Railsのセッションって何なの？（まとめを先出し）</h2>
+
+<ul>
+  <li>ブラウザごとに持つデータ</li>
+  <li>ブラウザの個体認識はcookieに渡した鍵で行う</li>
+  <li>
+<strong>データ本体の所在はrailsアプリの設定で変えられる</strong>
+    <ul>
+      <li>デフォルトではcookieにデータも置く</li>
+    </ul>
+  </li>
+  <li>ユーザーがその値を見たり、勝手に変更できない
+    <ul>
+      <li>なので、最初は「サーバー側に保存される」と考えていてもそれほど支障がない</li>
+    </ul>
+  </li>
+</ul>
+
+</section>
+<section>
+
+<h2>Railsガイド曰く、</h2>
+
+<p><img src="images/rails_guide_session.png" alt=""></p>
+
+<p><a href="https://railsguides.jp/action_controller_overview.html#%E3%82%BB%E3%83%83%E3%82%B7%E3%83%A7%E3%83%B3">https://railsguides.jp/action_controller_overview.html#%E3%82%BB%E3%83%83%E3%82%B7%E3%83%A7%E3%83%B3</a></p>
+
+</section>
+<section>
+
+<h2>？</h2>
+
+<ul>
+  <li>どういう動きをしているのかイメージするのは難しい</li>
+  <li>実際見ていきましょう</li>
+  <li>今日は2つのパターンを見ます</li>
+</ul>
+
+</section>
+<section>
+
+<h2>その前に復習：Cookieの動作</h2>
+
+<ul>
+  <li>どの方式でもCookieは使う</li>
+  <li>ブラウザが保存しているデータ
+    <ul>
+      <li>送信先ごとに</li>
+    </ul>
+  </li>
+  <li>サイズに制限がある</li>
+  <li>HTTPレスポンスの中に「これをcookieに保存して」と書かれていたら、その内容を保存する</li>
+  <li>送信するHTTPリクエストに、保存されているcookieの内容を入れて送る</li>
+</ul>
+
+</section>
+<section>
+
+<h2>その前に復習：Cookieの動作</h2>
+
+<p><img src="images/cookie.gif" alt=""></p>
+
+</section>
+<section>
+
+<h2>CookieStore（デフォルト）の場合</h2>
+
+<ul>
+  <li>暗号化したセッションのデータをcookieに保存</li>
+  <li>rails newして設定を変えなかったらこの方式になる</li>
+  <li>サーバー側で保存場所を用意しなくて良い</li>
+</ul>
+
+</section>
+<section>
+
+<h2>CookieStore（デフォルト）の場合</h2>
+
+<p><img src="images/cookie_store.gif" alt=""></p>
+
+</section>
+<section>
+
+<h2>簡単なテストプログラム</h2>
+
+<p><img src="images/session_test.png" alt=""></p>
+
+</section>
+<section>
+
+<h2>暗号化されて保存されているセッションのデータ</h2>
+
+<p><img src="images/session_cookie.png" alt=""></p>
+
+</section>
+<section>
+
+<h2>これをこのようなコードにかけると…</h2>
+
+<pre><code class="language-ruby">require 'cgi'
+require 'openssl'
+require 'base64'
+require 'json'
+
+# 暗号化の鍵、これが利用者にもれたらダメ
+secret_key_base = '534e50c3c06e019ddfa95d36cea714786d3b09df460e05c32bf5c91dc9d33f6bde2e63ee55dec9ad3c61f29974f802dc422a74d6f2c5931abe59cd32948a0780'
+salt = 'authenticated encrypted cookie'
+
+# ブラウザに保存してあるcookie文字列
+encrypted_session = CGI.unescape('aVCFHopZ4mS8L0atqkI4OeYUNEWjYBSPEZcAfjc%2F%2FOGT2%2BHzq1y%2FBlbGQhoLOprj5Jqan5zGV%2FYmglwL%2FKaTIfFx0zYq7RLSQ3nb7VTeQFLP8dNigQVPwfwy1nvxFu0C5j8r73TzrFaRP2LJ4oBbXI%2FAujWTOli21Eu8DCvmOGoUqF6IFUGGjHvZLvmjwclesiAJgEmQ8F11Z2JOgypaB4Tml5epzjnBHfl1djzdW2%2BLGtyACZWaaUkFE23lTCuMAvs9A9hyIGnT2%2BUe5U%2BjUi3c8CY95ckYrrmkT3Pkht0S2MJWUA3qtuaCHQ54kEPfDw%3D%3D--R6wkSNJzlN25MGkr--s0wLFfWuDPACSgogn127zQ%3D%3D')
+
+#   len   = ActiveSupport::MessageEncryptor.key_len
+cipher = OpenSSL::Cipher.new('aes-256-gcm')
+len = cipher.key_len
+#   key   = ActiveSupport::KeyGenerator.new('password').generate_key(salt, len) # =&gt; "\x89\xE0\x156\xAC..."
+key = OpenSSL::PKCS5.pbkdf2_hmac(secret_key_base, salt, 1000, len, OpenSSL::Digest::SHA1.new)
+#   crypt = ActiveSupport::MessageEncryptor.new(key)                            # =&gt; #&lt;ActiveSupport::MessageEncryptor ...&gt;
+#   crypt.decrypt_and_verify(encrypted_data)                                    # =&gt; "my secret data"
+encrypted_data, iv, auth_tag = encrypted_session.split("--").map { |v| ::Base64.strict_decode64(v) }
+
+cipher.decrypt
+cipher.key = key
+cipher.iv  = iv
+cipher.auth_tag = auth_tag
+cipher.auth_data = ""
+
+decrypted_data = cipher.update(encrypted_data)
+decrypted_data &lt;&lt; cipher.final
+message = JSON.parse(decrypted_data)['_rails']['message']
+
+puts Base64.strict_decode64(message)
+</code></pre>
+
+</section>
+<section>
+
+<h2>セッションの中身がわかっちゃう！</h2>
+
+<p><img src="images/decrypted.png" alt=""></p>
+
+</section>
+<section>
+
+<h2>CookieStoreの動作</h2>
+
+<ul>
+  <li>どうやって「ユーザーがその値を見たり、勝手に変更できない」ようにしているのか？
+    <ul>
+      <li>暗号化によって</li>
+      <li>なので、鍵の情報が漏れるとだめ
+        <ul>
+          <li>secret_key_base, salt</li>
+          <li>今のRailsの仕組みなら、よほどの事がない限りは大丈夫</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+</section>
+<section>
+
+<h2>ActiveRecordStore</h2>
+
+<ul>
+  <li>cookieには鍵だけを保存</li>
+  <li>DBに鍵とデータのペアを保存</li>
+  <li>サーバー側で書き換えたりしやすい</li>
+</ul>
+
+</section>
+<section>
+
+<h2>ActiveRecordStore</h2>
+
+<p><img src="images/active_record_store.gif" alt=""></p>
+
+</section>
+<section>
+
+<h2>保存されているセッションのキー</h2>
+
+<p><img src="images/session_id_cookie.png" alt=""></p>
+
+</section>
+<section>
+
+<h2>データベースの中身</h2>
+
+<p><img src="images/sessions_table.png" alt=""></p>
+
+</section>
+<section>
+
+<h2>まとめ再掲</h2>
+
+<ul>
+  <li>ブラウザごとに持つデータ</li>
+  <li>ブラウザの個体認識はcookieに渡した鍵で行う</li>
+  <li>
+<strong>データ本体の所在はrailsアプリの設定で変えられる</strong>
+    <ul>
+      <li>デフォルトではcookieにデータも置く</li>
+    </ul>
+  </li>
+  <li>ユーザーがその値を見たり、勝手に変更できない
+    <ul>
+      <li>なので、最初は「サーバー側に保存される」と考えていてもそれほど支障がない</li>
+    </ul>
+  </li>
+</ul>
+
+</section>
+<section>
+
+<h2>終わり</h2>
+
+<p>ありがとうございました</p>
+
+</section>
+<section>
+
+<h2>余談１：Railsのコードのどこを読んだか</h2>
+
+<ul>
+  <li>rails
+    <ul>
+      <li><a href="https://github.com/rails/rails/blob/6-1-stable/actionpack/lib/action_dispatch/request/session.rb">ActionDispatch::Request::Session</a></li>
+      <li><a href="https://github.com/rails/rails/blob/6-1-stable/actionpack/lib/action_dispatch/middleware/session/cookie_store.rb">ActionDispatch::Session::CookieStore</a></li>
+      <li><a href="https://github.com/rails/rails/blob/6-1-stable/actionpack/lib/action_dispatch/middleware/cookies.rb#L630">ActionDispatch::Cookies::EncryptedKeyRotatingCookieJar</a></li>
+      <li><a href="https://github.com/rails/rails/blob/6-1-stable/activesupport/lib/active_support/message_encryptor.rb">ActiveSupport::MessageEncryptor</a></li>
+      <li><a href="https://github.com/rails/rails/blob/6-1-stable/activesupport/lib/active_support/messages/metadata.rb">ActiveSupport::Messages::Metadata</a></li>
+      <li><a href="https://github.com/rails/rails/blob/6-1-stable/activesupport/lib/active_support/key_generator.rb">ActiveSupport::KeyGenerator</a></li>
+      <li><a href="https://github.com/rails/rails/blob/6-1-stable/railties/lib/rails/application.rb">Rails::Application</a></li>
+    </ul>
+  </li>
+  <li>activerecord-session_store
+    <ul>
+      <li><a href="https://github.com/rails/activerecord-session_store/blob/master/lib/action_dispatch/session/active_record_store.rb">ActionDispatch::Session::ActiveRecordStore</a></li>
+    </ul>
+  </li>
+  <li>rack
+    <ul>
+      <li><a href="https://github.com/rack/rack/blob/master/lib/rack/session/abstract/id.rb">Rack::Session::SessionId</a></li>
+    </ul>
+  </li>
+</ul>
+
+</section>
+<section>
+
+<h2>余談２：久々にやったコードリーディングで便利だったもの</h2>
+
+<ul>
+  <li>github（タグ機能でリーディングやりやすくなってた）</li>
+  <li>pryのshow-source</li>
+  <li>instance_eval(‘<a href="https://github.com/xxx" class="user-mention">@xxx</a>’)とか</li>
+</ul>
+
+</section>
+<section>
+
+<h2>合わせて読みたい</h2>
+
+<ul>
+  <li><a href="https://railsguides.jp/security.html">Railsセキュリティガイド</a></li>
+  <li><a href="https://www.ipa.go.jp/security/vuln/websecurity-HTML-1_4.html">安全なウェブサイトの作り方 - 1.4 セッション管理の不備</a></li>
+</ul>
+
+</section>
+
+  </div>
+</div>
+
+<script src="lib/js/head.min.js"></script>
+<script src="js/reveal.js"></script>
+
+<script>
+  (function() {
+  function extend( a, b ) {
+    for(var i in b) {
+      a[i] = b[i];
+    }
+  }
+  var baseOptions = {
+    transition: 'default',
+
+    dependencies: [
+      { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+      { src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+      { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+      { src: 'plugin/highlight/highlight.js', async: true, condition: function() { return !!document.querySelector( 'pre code' ); }, callback: function() { hljs.initHighlightingOnLoad(); } },
+      { src: 'plugin/zoom-js/zoom.js', async: true },
+      { src: 'plugin/notes/notes.js', async: true }
+    ]
+  };
+  var configOptions = {"controls":true,"progress":true,"history":true,"center":true}
+  var initializeOptions = {};
+  extend(initializeOptions, baseOptions);
+  extend(initializeOptions, configOptions);
+  Reveal.initialize(initializeOptions);
+})();
+
+</script>
+
+  </body>
+</html>
